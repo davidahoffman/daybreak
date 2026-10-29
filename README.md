@@ -1,5 +1,7 @@
 # Daybreak
 
+<p align="center"><img src="docs/images/orb.gif" width="240" alt="The Daybreak orb: a breathing blue-violet blob rendered in WebGL by the web handset" /></p>
+
 A morning call from a chief of staff who read everything overnight. An AI agent gathers your day before you wake up (calendar, Slack, email, project status), writes one structured dossier, and at 07:45 your phone rings. You answer, hear a short spoken brief, and talk back: ask what someone said, dig into a thread, queue a follow-up. Then you hang up and start the day caught up.
 
 It runs on your Mac. Built with Claude Code.

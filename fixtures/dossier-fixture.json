@@ -1,0 +1,52 @@
+{
+  "date": "REWRITTEN-BY-PREFETCH",
+  "generatedAt": "REWRITTEN-BY-PREFETCH",
+  "generatedBy": "fixture (DAYBREAK_HARNESS)",
+  "headline": "Quiet night; the 10:00 with Sam is the day's hinge — bring the signup number",
+  "briefScript": "Quiet night, nothing on fire. The ten o'clock with Sam is the one that matters today.\n\nSam asked on Tuesday how the onboarding test was holding up, so have the signup number ready before you walk in. Maya's pre-read for the two o'clock landed overnight with a first cut of the retention curve.\n\nOvernight, Priya approved the pricing-page fix and asked one follow-up: should the same change go to the annual plan copy too? That's waiting on you, and a two-line answer unblocks her for the day.\n\nMy one recommendation: answer Priya before standup. It's a two-minute reply and it keeps her moving while you're in meetings. Let me know if you have any questions.",
+  "sections": {
+    "priorities": [
+      "Onboarding experiment — monitor through Friday, read next Thursday",
+      "Pricing page refresh — ship before the end of the month"
+    ],
+    "calendar": [
+      { "time": "09:15", "title": "Team standup", "who": "product team", "prep": "one-liner: experiment healthy, no action needed from the room" },
+      { "time": "10:00", "title": "1:1 with Sam", "who": "Sam", "prep": "Sam asked Tuesday about onboarding signups — bring the number and the read date" },
+      { "time": "14:00", "title": "Experiment sync", "who": "Maya, Priya", "prep": "Maya's pre-read has the first retention curve; skim it before the call" }
+    ],
+    "slack": [
+      { "channel": "#proj-pricing", "summary": "Priya approved the pricing-page fix and asked whether annual plan copy should get the same change — waiting on you", "needsReply": true, "handled": false, "evidenceId": "slack-1" }
+    ],
+    "email": [
+      { "from": "Maya Chen", "subject": "Pre-read — first retention cut", "summary": "first cut of the seven-day retention curve ahead of the 14:00 sync; early-window noise caveats", "evidenceId": "email-1" }
+    ],
+    "projectPulse": {
+      "project": "Onboarding experiment",
+      "status": "Live since Monday, 50/50 split. Signups steady on the dashboard. Assignment ends Friday, read next Thursday. No overnight alerts."
+    },
+    "worklog": [
+      "Closed out the dashboard tweaks",
+      "Drafted the annual-plan copy options"
+    ],
+    "blockers": [
+      "Priya's annual-plan question is blocked on you (two-line answer)"
+    ],
+    "recommendation": "Reply to Priya before standup — two minutes, unblocks her whole day, and you're in meetings until two.",
+    "weather": ""
+  },
+  "evidence": [
+    {
+      "id": "slack-1",
+      "kind": "slack",
+      "label": "#proj-pricing — pricing page fix thread",
+      "url": "https://example.slack.com/archives/C000000/p0000000000000000",
+      "text": "Priya (23:41): Took another pass at the pricing-page PR — this is what I wanted. Approving.\nPriya (23:43): One question before we call it done: should the annual plan copy get the same change? Right now it still shows the old monthly framing. Your call, I just want it decided before Thursday.\nMaya (23:58): From the measurement side either is fine, as long as it doesn't change mid-experiment."
+    },
+    {
+      "id": "email-1",
+      "kind": "email",
+      "label": "Maya Chen — Pre-read: first retention cut",
+      "text": "From: Maya Chen\nSubject: Pre-read — first retention cut\n\nAhead of the 2pm: first cut of the seven-day retention curve. Treatment is tracking slightly above control but the interval is wide — it's early and I wouldn't read anything into it yet. The first three days are noisy because of the staggered rollout.\n\nNothing here changes the plan: assignment through Friday, full read next Thursday.\n\n— Maya"
+    }
+  ]
+}

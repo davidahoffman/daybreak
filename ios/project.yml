@@ -1,0 +1,22 @@
+name: Daybreak
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "17.0"
+targets:
+  Daybreak:
+    type: application
+    platform: iOS
+    sources:
+      - Daybreak
+    settings:
+      base:
+        INFOPLIST_FILE: Daybreak/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.daybreak
+        PRODUCT_NAME: Daybreak
+        SWIFT_VERSION: "5.9"
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "1"
+        MARKETING_VERSION: "0.1"
+        CURRENT_PROJECT_VERSION: "1"

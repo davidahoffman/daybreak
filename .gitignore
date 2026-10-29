@@ -1,0 +1,10 @@
+# Runtime state: dossiers, brief audio, tokens, logs — all personal
+state/
+.env
+
+# Build products
+ios/build/
+ios/Daybreak.xcodeproj/
+server/mic-watch/mic-watch
+.DS_Store
+node_modules/

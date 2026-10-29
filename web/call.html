@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#fbfbf8">
+<title>Daybreak</title>
+<style>
+  :root {
+    --paper: #fbfbf8;
+    --ink: #1f1d19;
+    --dim: #6f6b62;
+    --faint: #8a867d;
+    --line: rgba(31, 29, 25, 0.16);
+    --fill: #edeae2;
+    --rec: #d6473c;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    overflow: hidden; user-select: none; -webkit-user-select: none;
+  }
+  .screen {
+    position: absolute; inset: 0; margin: 0 auto; max-width: 640px;
+    display: none; flex-direction: column; align-items: center;
+    padding: max(22px, env(safe-area-inset-top)) 28px max(18px, env(safe-area-inset-bottom));
+  }
+  .screen.active { display: flex; }
+  .gap.g1 { flex: 0.9 0 24px; }
+  .gap.g2 { flex: 1.1 0 24px; }
+
+  .clock { font-size: 11px; letter-spacing: 0.02em; color: var(--faint); font-variant-numeric: tabular-nums; }
+  #call .clock { margin-top: 6px; }
+
+  .orb-wrap { flex: 0 0 auto; position: relative; width: 224px; height: 224px; }
+  #call .orb-wrap { margin: 2vh 0 0; width: 112px; height: 112px; }
+  #setup .orb-wrap { margin-top: 9vh; width: 160px; height: 160px; }
+  .orb { /* CSS fallback only — hidden once WebGL succeeds (body.orbgl) */
+    position: absolute; inset: 0; border-radius: 50%;
+    background:
+      radial-gradient(circle at 32% 28%, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0) 24%),
+      conic-gradient(from 210deg, #4b3fd4, #3b6cf0, #8ca4ff, #bcd0ff, #3b6cf0, #4b3fd4);
+    box-shadow: 0 0 60px rgba(104, 132, 255, 0.22), 0 0 140px rgba(88, 70, 220, 0.10);
+    animation: breathe 5.5s ease-in-out infinite;
+  }
+  .orb::after {
+    content: ""; position: absolute; inset: 12%; border-radius: 50%;
+    background: radial-gradient(circle at 50% 62%, rgba(4,6,13,0.72) 0%, rgba(4,6,13,0.15) 58%, rgba(255,255,255,0.12) 100%);
+  }
+  @keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.045); } }
+  .ringing .orb { animation: ringpulse 1.15s ease-in-out infinite; }
+  @keyframes ringpulse { 0%,100% { transform: scale(1); } 40% { transform: scale(1.09); } }
+  .speaking .orb { animation: talkpulse 0.85s ease-in-out infinite; }
+  @keyframes talkpulse { 0%,100% { transform: scale(1.0); } 50% { transform: scale(1.06); } }
+  .listening .orb { box-shadow: 0 0 60px rgba(94, 234, 212, 0.3), 0 0 140px rgba(59, 130, 246, 0.15); }
+  .halo { position: absolute; inset: -22px; border-radius: 50%; border: 1.5px solid rgba(31, 29, 25, 0.10); }
+  .ringing .halo { animation: halo 1.15s ease-out infinite; }
+  @keyframes halo { from { transform: scale(0.92); opacity: 0.9; } to { transform: scale(1.28); opacity: 0; } }
+  canvas.orbfx { position: absolute; left: 50%; top: 50%; width: 212%; height: 212%; transform: translate(-50%, -50%); pointer-events: none; }
+  body.orbgl .orb, body.orbgl .halo { display: none; }
+
+  h1 {
+    margin-top: 5vh; font-family: var(--serif); font-size: 24px; font-weight: 400;
+    letter-spacing: -0.01em; line-height: 1.35; text-align: center;
+  }
+  h1:empty { display: none; }
+  .headline {
+    margin-top: 4.5vh; font-family: var(--serif); font-size: 24px; font-weight: 400;
+    line-height: 1.45; color: var(--ink); text-align: center; max-width: 24ch; text-wrap: balance;
+  }
+  h1:not(:empty) + .headline { margin-top: 2vh; }
+  .headline:empty { display: none; }
+  .sub { margin-top: 14px; font-size: 15px; color: var(--dim); text-align: center; max-width: 36ch; line-height: 1.5; }
+  .sub:empty { display: none; }
+  .sub code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px;
+    color: var(--dim); background: var(--fill); padding: 1px 5px; border-radius: 5px;
+  }
+
+  .linkcta {
+    margin-top: 4vh; background: none; border: none; cursor: pointer;
+    font-family: var(--sans); font-size: 15px; color: var(--ink); padding: 12px 10px;
+    text-decoration: underline; text-decoration-thickness: 1px;
+    text-underline-offset: 6px; text-decoration-color: rgba(31, 29, 25, 0.4);
+  }
+  .linkcta:hover { text-decoration-color: var(--ink); }
+  .linkcta:active { text-decoration-color: var(--ink); transform: translateY(1px); }
+
+  .captions {
+    flex: 1 1 auto; width: min(560px, 100%); margin-top: 3vh; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 14px; padding: 4px 2px 12px;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, black 24px);
+    mask-image: linear-gradient(to bottom, transparent, black 24px);
+  }
+  .bubble { max-width: 88%; font-size: 15px; line-height: 1.55; animation: rise .25s ease; }
+  .bubble.me   { align-self: flex-end; background: var(--fill); padding: 9px 14px; border-radius: 16px; border-bottom-right-radius: 5px; }
+  .bubble.day  { align-self: flex-start; color: var(--ink); }
+  .bubble.sys  { align-self: center; color: var(--faint); font-size: 12px; }
+  /* Brief paragraphs: faint until spoken, inked edge on the one being read. */
+  .bubble.day.para { color: var(--faint); cursor: pointer; border-left: 2px solid transparent; padding-left: 12px; transition: color .35s ease, border-color .35s ease; }
+  .bubble.day.para.now { color: var(--ink); border-left-color: var(--ink); }
+  .bubble.day.para.done { color: var(--ink); }
+  .bubble.day.para.commented::after { content: " ✎"; color: var(--faint); }
+  .combox { align-self: flex-start; display: flex; gap: 8px; align-items: center; width: min(440px, 92%); padding-left: 14px; animation: rise .25s ease; }
+  .combox input[type=text] { width: auto; flex: 1; padding: 9px 12px; font-size: 14px; border-radius: 9px; }
+  .combox .linkcta { margin-top: 0; padding: 6px 2px; font-size: 14px; }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+
+  .controls { flex: 0 0 auto; display: flex; gap: 30px; align-items: center; }
+  #call .controls { margin-top: 12px; }
+  .btn {
+    border: 1px solid var(--line); background: none; color: var(--ink);
+    border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: transform .12s ease, background-color .15s ease;
+  }
+  .btn:active { transform: scale(0.94); }
+  .btn:focus-visible, .linkcta:focus-visible, input[type=text]:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+  .btn.hang { width: 56px; height: 56px; font-size: 16px; color: var(--dim); }
+  .btn.mic  { width: 72px; height: 72px; font-size: 24px; }
+  .btn.mic.rec { background: var(--rec); border-color: var(--rec); color: #fff; }
+  .hint { margin-top: 12px; font-size: 12px; color: var(--faint); }
+  .hint:empty { display: none; }
+
+  .tokenbox { margin-top: 4vh; display: flex; flex-direction: column; gap: 6px; width: min(340px, 100%); align-items: center; }
+  input[type=text] {
+    background: #fff; border: 1px solid var(--line); color: var(--ink);
+    border-radius: 10px; padding: 13px 15px; font-size: 16px; outline: none; width: 100%;
+    user-select: text; -webkit-user-select: text; /* body disables selection; inputs need it back */
+  }
+  input[type=text]:focus { border-color: var(--ink); }
+  .tokenbox .linkcta { margin-top: 6px; }
+
+  .foot { margin-top: auto; padding-top: 12px; display: flex; align-items: baseline; }
+  .statusline { font-size: 11px; letter-spacing: 0.02em; color: var(--faint); font-variant-numeric: tabular-nums; }
+  #setup .statusline { margin-top: auto; padding-top: 12px; }
+  #homeStatus:not(:empty)::before { content: "·"; margin: 0 7px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .orb, .ringing .orb, .speaking .orb, .ringing .halo, .bubble { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- SETUP: token entry (only when opened from another device without ?t=) -->
+<section id="setup" class="screen">
+  <div class="orb-wrap"><div class="halo"></div><div class="orb"></div><canvas class="orbfx"></canvas></div>
+  <h1>Pair this handset</h1>
+  <p class="sub">Paste the device token from <code>state/device-token</code> on the Mac running Daybreak.</p>
+  <div class="tokenbox">
+    <input id="tokenInput" type="text" placeholder="device token" autocomplete="off" spellcheck="false">
+    <button class="linkcta" onclick="saveToken()">connect</button>
+  </div>
+  <div class="statusline" id="setupStatus"></div>
+</section>
+
+<!-- HOME / INCOMING -->
+<section id="home" class="screen">
+  <div class="gap g1"></div>
+  <div class="orb-wrap"><div class="halo"></div><div class="orb"></div><canvas class="orbfx"></canvas></div>
+  <h1 id="homeTitle"></h1>
+  <p class="headline" id="homeHeadline"></p>
+  <p class="sub" id="homeSub">Checking this morning's dossier…</p>
+  <div class="controls">
+    <button class="linkcta" id="answerBtn" style="display:none">tap to hear your brief</button>
+  </div>
+  <div class="hint" id="homeHint"></div>
+  <div class="gap g2"></div>
+  <footer class="foot"><span class="clock" id="clock"></span><span class="statusline" id="homeStatus"></span></footer>
+</section>
+
+<!-- IN CALL -->
+<section id="call" class="screen">
+  <div class="clock" id="callClock"></div>
+  <div class="orb-wrap"><div class="halo"></div><div class="orb"></div><canvas class="orbfx"></canvas></div>
+  <div class="captions" id="captions"></div>
+  <div class="controls">
+    <button class="btn hang" onclick="hangup()" aria-label="Hang up">✕</button>
+    <button class="btn mic" id="micBtn" onclick="toggleMic()" aria-label="Talk">🎙</button>
+  </div>
+  <div class="hint" id="callHint">tap the mic to talk, tap again or pause to send</div>
+</section>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const qs = new URLSearchParams(location.search);
+let TOKEN = "__DAYBREAK_TOKEN__" || qs.get("t") || localStorage.getItem("daybreak-token") || "";
+if (qs.get("t")) { TOKEN = qs.get("t"); }
+if (TOKEN && !TOKEN.startsWith("__")) localStorage.setItem("daybreak-token", TOKEN);
+if (TOKEN.startsWith("__")) TOKEN = localStorage.getItem("daybreak-token") || "";
+
+const API = (p) => fetch(p, { headers: { Authorization: "Bearer " + TOKEN } });
+const APIpost = (p, body, ctype) => fetch(p, {
+  method: "POST",
+  headers: { Authorization: "Bearer " + TOKEN, ...(ctype ? { "Content-Type": ctype } : {}) },
+  body,
+});
+
+let state = "home"; // home | call
+let statusCache = null;
+let briefAudio = null;
+let replyAudio = null;
+let recorder = null, recStream = null, analyserCtx = null, silenceTimer = null, recording = false;
+let heardSpeech = false, meterSamples = 0, recStartedAt = 0;
+let briefParas = [], lastActivePara = -1, briefSynced = false, openCombox = null;
+
+function show(id) {
+  document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
+  $(id).classList.add("active");
+}
+function setOrbMode(mode) { // "", ringing, speaking, listening, thinking
+  ["home", "call"].forEach((id) => { $(id).className = "screen" + ($(id).classList.contains("active") ? " active" : ""); });
+  if (mode) { $("home").classList.add(mode); $("call").classList.add(mode); }
+  ORB.mode = mode || "idle";
+}
+function caption(kind, text) {
+  const d = document.createElement("div");
+  d.className = "bubble " + kind;
+  d.textContent = text;
+  $("captions").appendChild(d);
+  $("captions").scrollTop = $("captions").scrollHeight;
+  return d;
+}
+function tick() {
+  const t = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  $("clock").textContent = t; $("callClock").textContent = t;
+}
+setInterval(tick, 1000); tick();
+
+// ---------- status poll ----------
+async function poll() {
+  if (!TOKEN) { show("setup"); return; }
+  try {
+    const r = await API("/api/status");
+    if (r.status === 401) { show("setup"); $("setupStatus").textContent = "Token rejected. Paste a fresh one."; return; }
+    statusCache = await r.json();
+    if (state !== "call") renderHome();
+  } catch (e) {
+    if (state !== "call") { $("homeSub").textContent = "Can't reach the Daybreak server."; $("homeStatus").textContent = String(e); }
+  }
+}
+function renderHome() {
+  show("home");
+  const s = statusCache;
+  const d = s.dossier;
+  $("homeStatus").textContent = "daybreak " + s.version + " · dossier " + (d.date || "—") + " · ring " + s.ring.ringTime;
+  if (d.valid && s.briefAudioReady) {
+    $("homeTitle").textContent = qs.get("ring") ? "Daybreak is calling" : "";
+    $("homeSub").textContent = "";
+    $("homeHeadline").textContent = d.headline || "";
+    $("answerBtn").style.display = "inline-block";
+    $("homeHint").textContent = "";
+    setOrbMode(qs.get("ring") ? "ringing" : "");
+  } else {
+    $("homeTitle").textContent = "Good morning";
+    $("homeSub").textContent = d.exists
+      ? (d.valid ? "Rendering your brief audio…" : "Dossier not ready: " + (d.problems[0] || ""))
+      : "No dossier yet. The prefetch writes it around 07:15.";
+    $("answerBtn").style.display = "none";
+    setOrbMode("");
+  }
+}
+
+// ---------- answer / brief ----------
+async function answer() {
+  state = "call";
+  show("call");
+  setOrbMode("speaking");
+  caption("sys", "Daybreak · " + new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }));
+  try { await APIpost("/api/answered", "{}", "application/json"); } catch {}
+  // Warm up the mic permission while the brief plays.
+  navigator.mediaDevices?.getUserMedia({ audio: true }).then((s) => { recStream = s; }).catch(() => {});
+  try {
+    const r = await API("/api/brief.wav");
+    const blob = await r.blob();
+    briefAudio = new Audio(URL.createObjectURL(blob));
+    const scriptText = (await (await API("/api/dossier")).json()).briefScript;
+    let segments = null;
+    try {
+      const m = await API("/api/brief-meta");
+      if (m.ok) segments = (await m.json()).segments || null;
+    } catch {}
+    renderBrief(scriptText, segments);
+    briefAudio.onended = endBrief;
+    await briefAudio.play();
+    if (briefSynced) syncHighlight();
+  } catch (e) {
+    caption("sys", "Couldn't play the brief: " + e);
+    setOrbMode("listening");
+  }
+}
+
+// One bubble per brief paragraph. When brief-meta segments match the audio,
+// the paragraph being spoken gets the ink + edge (read-along); old single-block
+// scripts fall back to sentence groups rendered fully inked, no sync.
+function renderBrief(script, segments) {
+  briefSynced = Array.isArray(segments) && segments.length > 1;
+  const parts = briefSynced ? segments.map((s) => s.text) : chunkSentences(script);
+  lastActivePara = -1;
+  briefParas = parts.map((text, i) => {
+    const el = caption("day", text);
+    el.classList.add("para");
+    if (!briefSynced) el.classList.add("done");
+    // While the voice is still reading, tapping a paragraph it hasn't reached
+    // yet jumps the narration there (you read ahead → it catches up to you).
+    // Tapping anything already spoken, or anything once the brief is over, comments.
+    el.onclick = () => { if (briefPlaying() && i > lastActivePara) skipToPara(i); else openComment(i, el, text); };
+    return { el, text, startSec: briefSynced ? segments[i].startSec : 0 };
+  });
+  if (briefSynced) briefAudio.addEventListener("timeupdate", syncHighlight);
+}
+function chunkSentences(script) {
+  const parts = [];
+  let current = "";
+  for (const s of script.match(/[^.!?]+[.!?]+\s*|[^.!?]+$/g) || [script]) {
+    if (current && current.length + s.length > 260) { parts.push(current.trim()); current = ""; }
+    current += s;
+  }
+  if (current.trim()) parts.push(current.trim());
+  return parts;
+}
+function syncHighlight() {
+  const t = briefAudio.currentTime;
+  let active = 0;
+  for (let i = 0; i < briefParas.length; i++) if (t >= briefParas[i].startSec - 0.15) active = i;
+  if (active === lastActivePara) return;
+  lastActivePara = active;
+  briefParas.forEach((p, i) => {
+    p.el.classList.toggle("now", i === active);
+    p.el.classList.toggle("done", i < active);
+  });
+  briefParas[active].el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+function finishBrief() {
+  briefAudio?.removeEventListener("timeupdate", syncHighlight);
+  briefParas.forEach((p) => { p.el.classList.remove("now"); p.el.classList.add("done"); });
+}
+function endBrief() {
+  finishBrief();
+  APIpost("/api/brief-ended", "{}", "application/json").catch(() => {});
+  setOrbMode("listening");
+  $("callHint").textContent = "your line, tap the mic — tap a paragraph to leave feedback";
+}
+
+// Invisible skip. No button: → (right arrow) jumps to the next paragraph, tapping
+// an unread paragraph jumps to that one, and skipping past the last paragraph
+// ends the brief. The read-along highlight is the only feedback. Needs
+// brief-meta timings; an unsynced (old single-block) brief can't be skipped.
+const briefPlaying = () => briefSynced && !!briefAudio && !briefAudio.paused && !briefAudio.ended;
+function skipToPara(i) {
+  if (!briefPlaying()) return;
+  if (i >= briefParas.length) { briefAudio.onended = null; briefAudio.pause(); endBrief(); return; }
+  briefAudio.currentTime = briefParas[i].startSec;
+  syncHighlight();
+}
+function nextPara() { skipToPara(Math.max(0, lastActivePara) + 1); }
+
+// Tap a paragraph → inline comment box. The comment lands in
+// brief-feedback.jsonl and rides into tomorrow's dossier prompt.
+function openComment(index, el, text) {
+  if (openCombox) { openCombox.remove(); openCombox = null; }
+  const box = document.createElement("div");
+  box.className = "combox";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = "feedback for tomorrow's brief…";
+  input.autocomplete = "off";
+  const send = document.createElement("button");
+  send.className = "linkcta";
+  send.textContent = "send";
+  const submit = async () => {
+    const comment = input.value.trim();
+    box.remove(); openCombox = null;
+    if (!comment) return;
+    try {
+      await APIpost("/api/feedback", JSON.stringify({ paragraphIndex: index, paragraphText: text, comment }), "application/json");
+      el.classList.add("commented");
+      caption("sys", "✓ noted — tomorrow's brief will use this");
+    } catch (e) {
+      caption("sys", "Couldn't save feedback: " + e);
+    }
+  };
+  send.onclick = submit;
+  input.addEventListener("keydown", (e) => {
+    e.stopPropagation(); // keep Space out of the mic toggle while typing
+    if (e.key === "Enter") submit();
+    if (e.key === "Escape") { box.remove(); openCombox = null; }
+  });
+  box.append(input, send);
+  el.after(box);
+  openCombox = box;
+  input.focus();
+}
+
+// ---------- talk turns ----------
+function pickMime() {
+  const c = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
+  for (const m of c) if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
+  return "";
+}
+async function toggleMic() {
+  if (recording) { stopRec(); return; }
+  // Barge-in: talking interrupts Daybreak.
+  if (briefAudio && !briefAudio.paused) briefAudio.pause();
+  if (replyAudio && !replyAudio.paused) replyAudio.pause();
+  try {
+    if (!recStream || !recStream.active) recStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (e) { caption("sys", "Mic permission needed."); return; }
+  const mime = pickMime();
+  recorder = new MediaRecorder(recStream, mime ? { mimeType: mime } : undefined);
+  const chunks = [];
+  recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+  recorder.onstop = () => {
+    // No-speech gate: whisper hallucinates on silence, so never send a
+    // recording the meter judged empty (only when the meter actually ran).
+    const tooShort = Date.now() - recStartedAt < 400;
+    const judgedSilent = meterSamples > 5 && !heardSpeech;
+    if (tooShort || judgedSilent) {
+      setOrbMode("listening");
+      $("callHint").textContent = "didn't hear anything, tap the mic and speak";
+      return;
+    }
+    sendTurn(new Blob(chunks, { type: recorder.mimeType || "audio/webm" }));
+  };
+  recorder.start();
+  recording = true;
+  heardSpeech = false; meterSamples = 0; recStartedAt = Date.now();
+  $("micBtn").classList.add("rec");
+  setOrbMode("listening");
+  $("callHint").textContent = "listening, tap again or pause to send";
+  watchSilence();
+}
+function stopRec() {
+  if (!recording) return;
+  recording = false;
+  ORB.level = 0;
+  $("micBtn").classList.remove("rec");
+  clearInterval(silenceTimer);
+  try { analyserCtx?.close(); } catch {}
+  analyserCtx = null;
+  recorder?.state !== "inactive" && recorder.stop();
+}
+function watchSilence() {
+  // Auto-send after ~1.6s of quiet once the user has spoken.
+  analyserCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const src = analyserCtx.createMediaStreamSource(recStream);
+  const an = analyserCtx.createAnalyser();
+  an.fftSize = 512;
+  src.connect(an);
+  const buf = new Uint8Array(an.fftSize);
+  let quietMs = 0, last = Date.now();
+  silenceTimer = setInterval(() => {
+    an.getByteTimeDomainData(buf);
+    let peak = 0;
+    for (const v of buf) peak = Math.max(peak, Math.abs(v - 128));
+    const now = Date.now(), dt = now - last; last = now;
+    meterSamples += 1;
+    ORB.level = ORB.level * 0.7 + Math.min(1, peak / 45) * 0.3;
+    if (peak > 14) { heardSpeech = true; quietMs = 0; }
+    else if (heardSpeech) { quietMs += dt; if (quietMs > 1600) stopRec(); }
+  }, 120);
+}
+async function sendTurn(blob) {
+  setOrbMode("thinking");
+  $("callHint").textContent = "thinking…";
+  const meBubble = caption("me", "…");
+  try {
+    const sttRes = await APIpost("/api/stt", blob, blob.type || "audio/webm");
+    const { transcript } = await sttRes.json();
+    if (!transcript) { meBubble.textContent = "(didn't catch that)"; setOrbMode("listening"); $("callHint").textContent = "tap the mic and try again"; return; }
+    meBubble.textContent = transcript;
+    const r = await APIpost("/api/turn", JSON.stringify({ text: transcript }), "application/json");
+    const data = await r.json();
+    caption("day", data.replyText);
+    (data.capturedActions || []).forEach((a) => caption("sys", "✓ queued: " + a));
+    if (data.replyAudioB64) {
+      const audioBlob = new Blob([Uint8Array.from(atob(data.replyAudioB64), (c) => c.charCodeAt(0))], { type: "audio/wav" });
+      replyAudio = new Audio(URL.createObjectURL(audioBlob));
+      setOrbMode("speaking");
+      replyAudio.onended = () => { setOrbMode("listening"); $("callHint").textContent = "your line, tap the mic"; };
+      await replyAudio.play();
+    } else {
+      setOrbMode("listening");
+    }
+  } catch (e) {
+    caption("sys", "Turn failed: " + e);
+    setOrbMode("listening");
+    $("callHint").textContent = "tap the mic to try again";
+  }
+}
+
+async function hangup() {
+  stopRec();
+  briefAudio?.pause(); replyAudio?.pause();
+  briefAudio?.removeEventListener("timeupdate", syncHighlight);
+  briefParas = []; lastActivePara = -1; briefSynced = false; openCombox = null;
+  try { await APIpost("/api/hangup", "{}", "application/json"); } catch {}
+  recStream?.getTracks().forEach((t) => t.stop());
+  recStream = null;
+  state = "home";
+  $("captions").innerHTML = "";
+  history.replaceState({}, "", location.pathname + (TOKEN ? "" : ""));
+  qs.delete("ring");
+  renderHome();
+}
+
+function saveToken() {
+  TOKEN = $("tokenInput").value.trim();
+  localStorage.setItem("daybreak-token", TOKEN);
+  poll();
+}
+
+// When the brief is ready, the whole home screen answers — the underlined
+// line is the label, not the target. Button clicks (incl. keyboard Enter)
+// bubble here, so the button needs no handler of its own.
+$("home").addEventListener("click", () => {
+  if (state === "home" && $("answerBtn").style.display !== "none") answer();
+});
+
+// Desktop keys: Space = mic toggle, → = skip the brief to the next paragraph.
+// Neither fires while typing in a comment box.
+document.addEventListener("keydown", (e) => {
+  if (state !== "call" || e.target.tagName === "INPUT") return;
+  if (e.code === "Space") { e.preventDefault(); toggleMic(); }
+  if (e.code === "ArrowRight" && briefPlaying()) { e.preventDefault(); nextPara(); }
+});
+
+// ---------- WebGL orb — Shelly's breathing lava-lamp orb, ported 1:1 from ShellyOrbView.swift ----------
+// Unit space: blob base radius = 1, blob diameter d = 2 = 82% of the wrap. If WebGL or the
+// shader fails, the CSS orb/halo stay visible (body.orbgl is only added on success).
+const ORB = { mode: "idle", level: 0 };
+(function () {
+  const P = {
+    idle:      { core:[0.55,0.65,1.00], mid:[0.35,0.40,0.92], deep:[0.18,0.12,0.55], bright:[0.30,0.78,1.00], soft:[0.58,0.32,0.95], warm:[0.72,0.30,0.70], glow:[0.40,0.55,1.00], speed:0.65, breathe:0.022, glowOp:0.35 },
+    ringing:   { core:[0.50,0.95,0.60], mid:[0.20,0.75,0.35], deep:[0.05,0.35,0.15], bright:[0.40,1.00,0.65], soft:[0.30,0.90,0.50], warm:[0.60,0.95,0.40], glow:[0.30,0.90,0.50], speed:2.5,  breathe:0.065, glowOp:0.60 },
+    listening: { core:[0.40,0.90,0.85], mid:[0.15,0.60,0.65], deep:[0.05,0.28,0.35], bright:[0.30,0.95,0.90], soft:[0.20,0.75,0.72], warm:[0.25,0.85,0.78], glow:[0.25,0.80,0.78], speed:0.8,  breathe:0.022, glowOp:0.45 },
+    speaking:  { core:[0.80,0.55,0.95], mid:[0.55,0.28,0.75], deep:[0.25,0.10,0.42], bright:[0.90,0.50,1.00], soft:[0.72,0.35,0.85], warm:[0.85,0.40,0.75], glow:[0.70,0.35,0.90], speed:0.7,  breathe:0.028, glowOp:0.45 },
+    thinking:  { core:[0.75,0.82,1.00], mid:[0.45,0.55,0.90], deep:[0.12,0.15,0.45], bright:[0.65,0.80,1.00], soft:[0.50,0.60,0.95], warm:[0.60,0.70,1.00], glow:[0.50,0.65,1.00], speed:1.0,  breathe:0.038, glowOp:0.50 },
+  };
+  const COLOR_KEYS = ["core", "mid", "deep", "bright", "soft", "warm", "glow"];
+  const VS = "attribute vec2 aP; void main(){ gl_Position = vec4(aP, 0.0, 1.0); }";
+  const FS = [
+    "precision highp float;",
+    "uniform vec2 uRes; uniform float uPx, uTime, uPhase, uBreathe, uOrganic, uGlowOp, uRing;",
+    "uniform vec3 uCore, uMid, uDeep, uBright, uSoft, uWarm, uGlowC;",
+    "uniform vec4 uStarA, uStarB; uniform vec2 uStarOp;",
+    "float blobR(float th, float c, float t) {",
+    "  return 1.0 + c*sin(2.0*th + t*0.55) + c*0.55*sin(3.0*th - t*0.42)",
+    "             + c*0.35*cos(4.0*th + t*0.65) + c*0.15*sin(5.0*th - t*0.30);",
+    "}",
+    "void blend(inout vec4 dst, vec3 rgb, float a) {", // source-over, dst premultiplied
+    "  dst.rgb = rgb*a + dst.rgb*(1.0-a); dst.a = a + dst.a*(1.0-a);",
+    "}",
+    "float ellD(vec2 p, vec2 c, float rot, vec2 ax) {",
+    "  vec2 q = p - c; float s = sin(rot), co = cos(rot);",
+    "  q = vec2(co*q.x + s*q.y, -s*q.x + co*q.y) / ax; return length(q);",
+    "}",
+    "void plasma(vec2 p, float i, vec2 ax, float sm, float orbit, vec3 pc, float op, inout vec3 col) {",
+    "  float ang = uPhase*sm + i*1.941611;", // i * pi * 0.618
+    "  float wob = sin(uPhase*0.35 + i*2.7);",
+    "  vec2 c = vec2(cos(ang), sin(ang)) * (2.0*orbit*(1.0 + wob*0.4));",
+    "  float rot = (uPhase*14.0*sm + i*72.0) * 0.01745329;",
+    "  float q = ellD(p, c, rot, ax);",
+    "  col = mix(col, pc, op * (1.0 - smoothstep(0.55, 1.25, q)));", // soft edge ~ Shelly's d*0.07 blur
+    "}",
+    "float star(vec2 p, vec4 s) {", // distance to segment center s.xy, half-extent s.zw
+    "  vec2 a = s.xy - s.zw, b = s.xy + s.zw; vec2 ab = b - a, ap = p - a;",
+    "  float h = clamp(dot(ap, ab) / max(dot(ab, ab), 1e-6), 0.0, 1.0);",
+    "  return length(ap - ab*h);",
+    "}",
+    "void main() {",
+    "  vec2 p = (gl_FragCoord.xy - 0.5*uRes) / uPx;",
+    "  p /= uBreathe;", // breathing scales the whole orb about its center
+    "  float rr = length(p); float th = atan(p.y, p.x); float aa = 1.5 / uPx;",
+    "  vec4 acc = vec4(0.0);",
+    "  float gR = blobR(th, uOrganic*0.45, uPhase*0.6);", // slower sibling blob = glow silhouette
+    "  float gt = (length(p - vec2(-0.05, 0.10)) / gR) / 1.195;",
+    "  vec3 gcol; float ga;",
+    "  if (gt < 0.3333) { float k = gt/0.3333; gcol = mix(uGlowC, uBright, k); ga = mix(0.34, 0.16, k); }",
+    "  else if (gt < 0.6667) { float k = (gt-0.3333)/0.3334; gcol = mix(uBright, uSoft, k); ga = mix(0.16, 0.08, k); }",
+    "  else { gcol = uSoft; ga = 0.08 * (1.0 - clamp((gt-0.6667)/0.3333, 0.0, 1.0)); }",
+    "  blend(acc, uGlowC, exp(-max(rr - 1.0, 0.0)*1.7) * 0.10 * uGlowOp);", // ambient bleed (was box-shadow)
+    "  blend(acc, gcol, ga * uGlowOp);",
+    "  if (uRing > 0.003) {", // ringing pulse rings, 2 phases 1s apart
+    "    float R2 = blobR(th, uOrganic*0.5, uPhase);",
+    "    for (int k = 0; k < 2; k++) {",
+    "      float cyc = fract((uTime*0.5 + float(k)) * 0.5);",
+    "      float band = 1.0 - smoothstep(0.011, 0.011 + aa*2.0, abs(rr - R2*(1.0 + cyc*0.35)));",
+    "      blend(acc, uGlowC, band * (1.0 - cyc) * 0.30 * uRing);",
+    "    }",
+    "  }",
+    "  float R = blobR(th, uOrganic, uPhase);",
+    "  float mask = 1.0 - smoothstep(R - aa, R + aa, rr);",
+    "  if (mask > 0.003) {",
+    "    float bd = length(p - vec2(-0.16, 0.24)) / 1.16;", // base gradient: core -> mid -> deep
+    "    vec3 col = bd < 0.5 ? mix(uCore, uMid, bd*2.0) : mix(uMid, uDeep, clamp(bd*2.0 - 1.0, 0.0, 1.0));",
+    "    plasma(p, 0.0, vec2(0.55, 0.42), 1.0, 0.18, uBright,   0.55, col);",
+    "    plasma(p, 1.0, vec2(0.48, 0.38), 0.7, 0.16, uSoft,     0.50, col);",
+    "    plasma(p, 2.0, vec2(0.42, 0.34), 1.4, 0.13, uWarm,     0.35, col);",
+    "    plasma(p, 3.0, vec2(0.46, 0.36), 0.9, 0.15, uCore,     0.40, col);",
+    "    plasma(p, 4.0, vec2(0.32, 0.26), 0.5, 0.09, vec3(1.0), 0.18, col);",
+    "    col = mix(col, vec3(1.0), uStarOp.x * (1.0 - smoothstep(0.010, 0.028, star(p, uStarA))));",
+    "    col = mix(col, vec3(1.0), uStarOp.y * (1.0 - smoothstep(0.010, 0.028, star(p, uStarB))));",
+    "    col = mix(col, vec3(0.0), smoothstep(0.56, 1.08, length(p - vec2(-0.16, 0.24))) * 0.15);", // vignette
+    "    blend(acc, col, mask);",
+    "  }",
+    "  gl_FragColor = acc;", // premultiplied; context created with premultipliedAlpha:true
+    "}",
+  ].join("\n");
+
+  function make(canvas) {
+    const opts = { alpha: true, premultipliedAlpha: true, antialias: false };
+    const gl = canvas.getContext("webgl", opts) || canvas.getContext("experimental-webgl", opts);
+    if (!gl) return null;
+    const sh = (type, src) => {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src); gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { console.warn("orbfx shader:", gl.getShaderInfoLog(s)); return null; }
+      return s;
+    };
+    const v = sh(gl.VERTEX_SHADER, VS), f = sh(gl.FRAGMENT_SHADER, FS);
+    if (!v || !f) return null;
+    const pr = gl.createProgram();
+    gl.attachShader(pr, v); gl.attachShader(pr, f); gl.linkProgram(pr);
+    if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) { console.warn("orbfx link:", gl.getProgramInfoLog(pr)); return null; }
+    gl.useProgram(pr);
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW); // fullscreen triangle
+    const aP = gl.getAttribLocation(pr, "aP");
+    gl.enableVertexAttribArray(aP);
+    gl.vertexAttribPointer(aP, 2, gl.FLOAT, false, 0, 0);
+    const U = {};
+    for (const n of ["uRes","uPx","uTime","uPhase","uBreathe","uOrganic","uGlowOp","uRing",
+                     "uCore","uMid","uDeep","uBright","uSoft","uWarm","uGlowC","uStarA","uStarB","uStarOp"]) {
+      U[n] = gl.getUniformLocation(pr, n);
+    }
+    return { canvas, gl, U };
+  }
+
+  const orbs = [];
+  const RM = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  document.querySelectorAll("canvas.orbfx").forEach((c) => { const o = make(c); if (o) orbs.push(o); });
+  if (!orbs.length) return; // no WebGL -> keep the CSS orb
+  document.body.classList.add("orbgl");
+
+  // Shooting stars: period 8+3i s, active first 10% of each cycle, arced path (d = 2 units).
+  function starState(index, time) {
+    const period = 8 + index * 3;
+    const shifted = time + index * 2.9;
+    const cycle = (shifted % period) / period;
+    if (cycle >= 0.10) return [0, 0, 0.05, 0, 0];
+    const progress = cycle / 0.10;
+    const cycleNum = Math.floor(shifted / period);
+    const pathAngle = index * 1.1 + cycleNum * 0.8;
+    const perp = pathAngle + Math.PI / 2;
+    const pos = -0.80 + progress * 1.60;
+    const drift = Math.sin(index * 2.7 + cycleNum * 1.3) * 0.24 + Math.sin(progress * Math.PI) * 0.16;
+    const x = Math.cos(pathAngle) * pos + Math.cos(perp) * drift;
+    const y = Math.sin(pathAngle) * pos + Math.sin(perp) * drift;
+    const op = Math.min(progress * 4, 1) * Math.min((1 - progress) * 3, 1) * 0.5;
+    return [x, y, Math.cos(pathAngle) * 0.10, Math.sin(pathAngle) * 0.10, op];
+  }
+
+  const cur = JSON.parse(JSON.stringify(P.idle));
+  let ring = 0, phase = 0, lastT = performance.now() / 1000, lastDraw = 0;
+
+  function frame(nowMs) {
+    requestAnimationFrame(frame);
+    const now = nowMs / 1000;
+    const fps = ORB.mode === "idle" ? 24 : 30;
+    if (now - lastDraw < 1 / fps - 0.002) return;
+    lastDraw = now;
+    const dt = Math.min(now - lastT, 0.1);
+    lastT = now;
+
+    // Ease palette + motion toward the target mode; phase accumulates so speed
+    // changes never jump the animation (Shelly's PhaseAccumulator).
+    const tgt = P[ORB.mode] || P.idle;
+    const k = Math.min(1, dt * 5);
+    for (const key of COLOR_KEYS) for (let i = 0; i < 3; i++) cur[key][i] += (tgt[key][i] - cur[key][i]) * k;
+    cur.speed += (tgt.speed - cur.speed) * k;
+    cur.glowOp += (tgt.glowOp - cur.glowOp) * k;
+    const tb = ORB.mode === "listening" ? 0.022 + ORB.level * 0.045 : tgt.breathe;
+    cur.breathe += (tb - cur.breathe) * k;
+    ring += ((ORB.mode === "ringing" ? 1 : 0) - ring) * k;
+    phase += dt * cur.speed * (RM ? 0.15 : 1); // reduced motion: slow drift, no pulse
+
+    if (document.hidden) return;
+    const canvas = document.querySelector(".screen.active canvas.orbfx");
+    const o = canvas && orbs.find((x) => x.canvas === canvas);
+    if (!o) return;
+    const gl = o.gl, U = o.U;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.round(canvas.clientWidth * dpr), h = Math.round(canvas.clientHeight * dpr);
+    if (!w || !h) return;
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; gl.viewport(0, 0, w, h); }
+
+    gl.uniform2f(U.uRes, w, h);
+    gl.uniform1f(U.uPx, 0.41 * canvas.parentElement.clientWidth * dpr); // blob radius in device px
+    gl.uniform1f(U.uTime, now);
+    gl.uniform1f(U.uPhase, phase);
+    gl.uniform1f(U.uBreathe, 1 + (RM ? 0 : Math.sin(now * 2.5) * cur.breathe));
+    gl.uniform1f(U.uOrganic, 0.07);
+    gl.uniform1f(U.uGlowOp, cur.glowOp * 0.35); // damped: full Shelly glow reads as haze on paper
+    gl.uniform1f(U.uRing, ring);
+    gl.uniform3fv(U.uCore, cur.core);   gl.uniform3fv(U.uMid, cur.mid);
+    gl.uniform3fv(U.uDeep, cur.deep);   gl.uniform3fv(U.uBright, cur.bright);
+    gl.uniform3fv(U.uSoft, cur.soft);   gl.uniform3fv(U.uWarm, cur.warm);
+    gl.uniform3fv(U.uGlowC, cur.glow);
+    const sA = starState(0, now), sB = starState(1, now);
+    gl.uniform4f(U.uStarA, sA[0], sA[1], sA[2], sA[3]);
+    gl.uniform4f(U.uStarB, sB[0], sB[1], sB[2], sB[3]);
+    gl.uniform2f(U.uStarOp, sA[4], sB[4]);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+  requestAnimationFrame(frame);
+})();
+
+poll();
+setInterval(() => { if (state !== "call") poll(); }, 15_000);
+</script>
+</body>
+</html>

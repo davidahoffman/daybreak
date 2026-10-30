@@ -49,7 +49,7 @@ const TOOLS = [
         url: { type: "string", description: "The URL exactly as it appears in the dossier" },
         label: {
           type: "string",
-          description: "One short line saying what this is, e.g. 'PR #124960 — ExP2.5 onboarding copy'",
+          description: "One short line saying what this is, e.g. 'PR #123 — onboarding copy fix'",
         },
       },
       required: ["url", "label"],

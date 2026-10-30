@@ -12,7 +12,7 @@ Daybreak has three parts. The seams between them are the point:
 
 - **A brain** writes `state/dossier.json`. By default it's headless Claude Code (`claude -p`), using whatever MCP servers and files you give it. `prefetch/dossier-prompt.md` is the whole contract, so Codex, a script, or a person could fill the role instead. The server never trusts the brain: a dossier that fails validation never rings.
 - **The exchange** is a zero-dependency Node server (`server/daybreak-server.mjs`, port 7745). It validates the dossier, pre-renders the brief audio, places the ring, and runs voice turns during the call (OpenAI speech-to-text → Claude with tools → OpenAI text-to-speech).
-- **Handsets** are thin clients. `web/call.html` works in any browser on your network. `ios/` is a SwiftUI app that pairs with the server. Both speak the same HTTP protocol.
+- **The handset** is a thin client. `web/call.html` works in any browser on your network and talks to the server over plain HTTP.
 
 ## Setup
 
@@ -49,7 +49,7 @@ Settings live in `state/config.json`, created on first run: ring time, deadline,
 |---|---|
 | 06:50 | `pmset` wakes the Mac. launchd runs the prefetch at 06:50, 06:55, and 07:25. Extra runs do nothing once a valid dossier exists |
 | ~06:55 | The brain gathers (a few minutes) and writes the dossier. The server validates it and renders `brief.wav` |
-| 07:45 | The ring: a chime on the Mac, the call page opens, and the iPhone app sends a local notification. **No valid dossier or no rendered audio means no ring.** |
+| 07:45 | The ring: a chime on the Mac, and the call page opens. **No valid dossier or no rendered audio means no ring.** |
 | Missed? | Re-rings every 20 minutes until 09:30. The brief waits in the handset all day |
 
 ## Operating it
@@ -102,16 +102,6 @@ During the call the model has three tools: `capture_action` (appends a checkbox 
 8. **launchd defers respawns on battery.** A keep-alive respawn can sit at `pended nondemand spawn = inefficient` indefinitely, so both agents set `ProcessType Interactive`. When a job looks loaded but dead, read `launchctl print gui/$UID/<label>`.
 9. **A closed lid on battery can't gather.** macOS force-sleeps regardless of `caffeinate`, and a gather that runs in dark-wake slivers produces a thin offline brief that blocks the real one. So the prefetch refuses to run on battery with the lid closed (exit 3), and the watchdog retries within about 2.5 minutes of opening the lid. Plugged in, `prefetch-awake.sh` keeps the Mac awake through the gather and the ring.
 
-## The iOS handset
-
-```bash
-cd ios && xcodegen generate --spec project.yml
-xcodebuild -project Daybreak.xcodeproj -scheme Daybreak -sdk iphonesimulator \
-  -destination 'platform=iOS Simulator,name=iPhone 16 Pro' CODE_SIGNING_ALLOWED=NO build
-```
-
-To run on a device, open the generated project, pick your signing team, and change the `com.example` bundle prefix in `project.yml`. Pair with the server URL and `state/device-token`. Today the ring on iOS is a weekday 07:45 local notification. The app checks for a real dossier when opened.
-
 ## Layout
 
 ```
@@ -122,7 +112,6 @@ prefetch/dossier-prompt.md   the brain contract
 prefetch/prefetch.mjs        runs the brain, validates, installs atomically
 fixtures/                    demo dossier
 web/call.html                browser handset
-ios/                         native handset (SwiftUI, xcodegen)
 scripts/daybreak.sh          install / status / ring / fixture / logs
 state/                       dossier, audio, config, token, logs (gitignored)
 ```

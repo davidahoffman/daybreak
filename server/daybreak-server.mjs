@@ -231,7 +231,7 @@ function sleepStarvationEvidence() {
       let d;
       try { d = JSON.parse(line); } catch { continue; }
       if (!d.ts?.startsWith(today.slice(0, 4))) continue;
-      // Local-date match, not the UTC prefix: an 07:06 Oslo start is 05:06Z.
+      // Local-date match, not the UTC prefix: an 07:06 start at UTC+2 is 05:06Z.
       if (new Date(d.ts).toDateString() !== new Date().toDateString()) continue;
       if (d.event === "claude_start") starts.push({ at: new Date(d.ts).getTime(), timeoutMin: d.timeoutMin || 25 });
       if (d.event === "claude_timeout" && starts.length) {
@@ -334,7 +334,7 @@ setInterval(missNoticeIfNeeded, 60_000).unref?.();
 // ---------- timezone self-heal ----------
 // Node caches the system timezone at startup and launchd caches calendar fire
 // times at load — a laptop that lands in a new timezone keeps both on the old
-// clock (2026-07-23: prefetch fired at 06:55 Oslo wall time while in Toronto).
+// clock (after travel, prefetch fired at 06:55 in the old timezone).
 // When the OS zone diverges from ours, reload the prefetch agent so launchd
 // recomputes its fire times, then exit; KeepAlive restarts us on the new clock.
 function nodeUtcOffset() {

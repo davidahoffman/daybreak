@@ -115,7 +115,7 @@ export class RingScheduler {
     this.log("ring", { count: this.state.ringCount, force, late });
 
     const cfg = this.config();
-    const url = `http://localhost:${cfg.port}/call?ring=1&t=${this.token()}`;
+    const url = `http://localhost:${cfg.port}/call?ring=1${force ? "&test=1" : ""}&t=${this.token()}`;
 
     // Ring sound: Glass ×4 with a gap — audible without being an alarm.
     let plays = 0;

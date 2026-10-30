@@ -97,31 +97,55 @@ export async function postBriefToSlack({ wavPath, dossier, log = () => {} }) {
 
 // Interval gate for the server: post once per dossier date, at/after postAt,
 // only when the same conditions that arm the ring hold (valid + rendered).
-export async function slackLegIfNeeded({ config, dossierState, briefAudioReady, stateDir, wavPath, log }) {
+let legInFlight = false;
+
+export async function slackLegIfNeeded(opts) {
+  // The interval fires every 30s and an upload can take ~105s; never overlap.
+  if (legInFlight) return;
+  legInFlight = true;
+  try {
+    await slackLeg(opts);
+  } finally {
+    legInFlight = false;
+  }
+}
+
+async function slackLeg({ config, dossierState, briefAudioReady, stateDir, wavPath, log }) {
   if (!config.slackLeg) return;
   if (!dossierState.valid || !briefAudioReady) return;
   const date = dossierState.dossier.date;
   const marker = markerPath(stateDir, date);
-  if (existsSync(marker)) return;
+  // notified:false = uploaded but the push failed — retry only the push.
+  // Older markers have no field and count as done.
+  let prior = null;
+  if (existsSync(marker)) {
+    try { prior = JSON.parse(readFileSync(marker, "utf8")); } catch { return; }
+    if (prior.notified !== false) return;
+  }
 
   const postAt = config.slackPostTime || "07:40";
   const now = new Date();
   const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
   if (hhmm < postAt) return;
 
-  const { fileId, permalink } = await postBriefToSlack({ wavPath, dossier: dossierState.dossier, log });
-  writeFileSync(marker, JSON.stringify({ postedAt: new Date().toISOString(), fileId, permalink }, null, 2));
+  let record = prior;
+  if (!record) {
+    const { fileId, permalink } = await postBriefToSlack({ wavPath, dossier: dossierState.dossier, log });
+    record = { postedAt: new Date().toISOString(), fileId, permalink, notified: false };
+    writeFileSync(marker, JSON.stringify(record, null, 2));
+  }
 
   // The upload above is silent. This is the one message the user sees — it
   // arrives as the Workflow app, so it pushes. The transcript rides along
   // because Slack's built-in transcription mangles it ("sends" → "cents") and
   // we hold the canonical text.
-  await notify({
+  const ok = await notify({
     headline: dossierState.dossier.headline,
     quote: dossierState.dossier.briefScript,
-    permalink,
+    permalink: record.permalink,
     log,
   });
+  if (ok) writeFileSync(marker, JSON.stringify({ ...record, notified: true, notifiedAt: new Date().toISOString() }, null, 2));
 }
 
 // ---------- CLI: node lib/slackleg.mjs --now ----------

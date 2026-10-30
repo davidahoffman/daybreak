@@ -21,15 +21,20 @@ export function validateDossier(dossier, { today = localDateString() } = {}) {
   const problems = [];
   if (!dossier || typeof dossier !== "object") return { valid: false, problems: ["not an object"] };
   if (dossier.date !== today) problems.push(`date is ${dossier.date}, today is ${today}`);
-  const script = (dossier.briefScript || "").trim();
+  // Type-check before trimming: a custom brain writing "headline": 42 must
+  // fail validation, not throw and crash-loop the server.
+  const str = (v) => (typeof v === "string" ? v : "");
+  if (dossier.briefScript != null && typeof dossier.briefScript !== "string") problems.push("briefScript is not a string");
+  if (dossier.headline != null && typeof dossier.headline !== "string") problems.push("headline is not a string");
+  const script = str(dossier.briefScript).trim();
   if (script.length < 300) problems.push(`briefScript too short (${script.length} chars) — not a real brief`);
   if (META_CONFIRMATION.test(script)) problems.push("briefScript is a meta-confirmation, not a brief");
   if (PROMISE_ONLY.test(script)) problems.push("briefScript promises a brief instead of being one");
   const sentences = script.split(/[.!?]+/).filter((s) => s.trim().length > 8);
   if (sentences.length < 4) problems.push("briefScript has fewer than 4 real sentences");
-  if (!dossier.sections || Object.keys(dossier.sections).length < 2)
+  if (!dossier.sections || typeof dossier.sections !== "object" || Object.keys(dossier.sections).length < 2)
     problems.push("sections missing or near-empty");
-  if (!dossier.headline || dossier.headline.trim().length < 8) problems.push("headline missing");
+  if (str(dossier.headline).trim().length < 8) problems.push("headline missing");
   return { valid: problems.length === 0, problems };
 }
 

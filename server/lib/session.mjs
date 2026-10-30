@@ -76,6 +76,18 @@ Today's dossier (${dossier.date}):
 ${dossierForPrompt(dossier)}`;
 }
 
+// Every URL the dossier contains, whole. send_link requires an exact member —
+// a substring check would pass a truncated ".../pull/12" for ".../pull/123".
+function dossierUrls(dossier) {
+  const urls = new Set();
+  const walk = (v) => {
+    if (typeof v === "string") for (const m of v.match(/https?:\/\/[^\s<>"'`)\]]+/g) || []) urls.add(m.replace(/[.,;:!?]+$/, ""));
+    else if (v && typeof v === "object") Object.values(v).forEach(walk);
+  };
+  walk(dossier);
+  return urls;
+}
+
 export class CallSession {
   constructor({ statePath, userName = null, model = DEFAULT_CHAT_MODEL, log = () => {} }) {
     this.statePath = statePath;
@@ -131,7 +143,7 @@ export class CallSession {
       }
       // The prompt says "verbatim from the dossier"; this makes it a guarantee
       // instead of a hope — a reconstructed or misheard URL never reaches Slack.
-      if (!JSON.stringify(this.dossier || {}).includes(url)) {
+      if (!dossierUrls(this.dossier).has(url)) {
         this.log("link_rejected", { url });
         return `"${url}" is not in this morning's dossier. Say so and offer capture_action instead.`;
       }

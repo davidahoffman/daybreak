@@ -274,11 +274,12 @@ async function answer() {
   show("call");
   setOrbMode("speaking");
   caption("sys", "Daybreak · " + new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }));
-  try { await APIpost("/api/answered", "{}", "application/json"); } catch {}
+  const testQ = qs.get("test") === "1" ? "?test=1" : "";
+  try { await APIpost("/api/answered" + testQ, "{}", "application/json"); } catch {}
   // Warm up the mic permission while the brief plays.
   navigator.mediaDevices?.getUserMedia({ audio: true }).then((s) => { recStream = s; }).catch(() => {});
   try {
-    const r = await API("/api/brief.wav");
+    const r = await API("/api/brief.wav" + testQ);
     const blob = await r.blob();
     briefAudio = new Audio(URL.createObjectURL(blob));
     const scriptText = (await (await API("/api/dossier")).json()).briefScript;

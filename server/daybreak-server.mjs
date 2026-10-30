@@ -163,6 +163,9 @@ async function renderBriefIfNeeded() {
   briefRendering = true;
   const t0 = Date.now();
   try {
+    // Capture before the awaits: if dossier.json is replaced mid-render, the
+    // finished audio must carry the OLD generatedAt so it re-renders.
+    const renderedFor = dossierState.dossier.generatedAt;
     const script = dossierState.dossier.briefScript;
     const paragraphs = briefParagraphs(script);
     log("brief_render_start", { chars: script.length, paragraphs: paragraphs.length });
@@ -183,7 +186,7 @@ async function renderBriefIfNeeded() {
     writeFileSync(
       paths.briefMeta,
       JSON.stringify(
-        { generatedAt: dossierState.dossier.generatedAt, renderedAt: new Date().toISOString(), segments },
+        { generatedAt: renderedFor, renderedAt: new Date().toISOString(), segments },
         null,
         2
       )
@@ -572,7 +575,7 @@ const server = createServer(async (req, res) => {
 
     if (route === "GET /api/brief.wav") {
       if (!briefAudioReady()) return json(res, 404, { error: "brief audio not ready" });
-      ringScheduler.markAnswered();
+      if (url.searchParams.get("test") !== "1") ringScheduler.markAnswered();
       session.ensureDossier(dossierState.dossier);
       const wav = readFileSync(paths.briefWav);
       res.writeHead(200, { "Content-Type": "audio/wav", "Content-Length": wav.length, "Access-Control-Allow-Origin": "*" });
@@ -604,7 +607,9 @@ const server = createServer(async (req, res) => {
     }
 
     if (route === "POST /api/answered") {
-      ringScheduler.markAnswered();
+      // A test ring's call page carries test=1: answering it must not cancel
+      // the real ring, the late ring, or the miss notice.
+      if (url.searchParams.get("test") !== "1") ringScheduler.markAnswered();
       // Quiet the music before the brief plays. The Web API pauses whatever device
       // is active (e.g. the web player); the AppleScript is a desktop-app
       // fallback that never launches Spotify. Awaited so the pause lands before the

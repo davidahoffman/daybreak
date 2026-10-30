@@ -481,6 +481,16 @@ function isLocalRequest(req) {
   return a === "127.0.0.1" || a === "::1" || a === "::ffff:127.0.0.1";
 }
 
+// A loopback socket alone isn't proof the page is ours: a site that DNS-rebinds
+// its own hostname to 127.0.0.1 arrives from loopback too, but with its own Host.
+// Only trust loopback when the browser was actually pointed at a loopback name.
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+function isLoopbackHost(req) {
+  const host = String(req.headers.host || "").toLowerCase();
+  const name = host.startsWith("[") ? host.slice(0, host.indexOf("]") + 1) : host.split(":")[0];
+  return LOOPBACK_HOSTS.has(name);
+}
+
 function authed(req, url) {
   const header = req.headers.authorization || "";
   if (header === `Bearer ${TOKEN}`) return true;
@@ -525,7 +535,7 @@ const server = createServer(async (req, res) => {
 
     if (url.pathname === "/" || route === "GET /call") {
       let html = readFileSync(paths.webCall, "utf8");
-      const trusted = isLocalRequest(req) || authed(req, url);
+      const trusted = (isLocalRequest(req) && isLoopbackHost(req)) || authed(req, url);
       html = html.replace("__DAYBREAK_TOKEN__", trusted ? TOKEN : "");
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
       return res.end(html);

@@ -129,6 +129,12 @@ export class CallSession {
       if (!/^https?:\/\/\S+$/.test(url)) {
         return `"${url}" is not a full URL. Only send URLs that appear verbatim in the dossier.`;
       }
+      // The prompt says "verbatim from the dossier"; this makes it a guarantee
+      // instead of a hope — a reconstructed or misheard URL never reaches Slack.
+      if (!JSON.stringify(this.dossier || {}).includes(url)) {
+        this.log("link_rejected", { url });
+        return `"${url}" is not in this morning's dossier. Say so and offer capture_action instead.`;
+      }
       const ok = await notify({ headline: `🔗 ${label}`, permalink: url, log: this.log });
       if (!ok) {
         return "Sending to Slack failed. Tell the user plainly and offer capture_action so it isn't lost.";

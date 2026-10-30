@@ -100,10 +100,17 @@ export class RingScheduler {
 
   ring({ force = false, late = false } = {}) {
     this.rolloverIfNewDay();
-    this.state.ringCount += 1;
-    this.state.lastRingAt = new Date().toISOString();
+    // A forced test ring (`daybreak.sh ring`) must not count as the morning's
+    // ring: ringCount/lastRingAt/openedUI gate the miss notice, the late-open
+    // ring, the retry window, and whether the real ring opens the call page.
+    if (force) {
+      this.state.lastTestRingAt = new Date().toISOString();
+    } else {
+      this.state.ringCount += 1;
+      this.state.lastRingAt = new Date().toISOString();
+    }
     const firstRingToday = !this.state.openedUI;
-    if (firstRingToday) this.state.openedUI = true;
+    if (firstRingToday && !force) this.state.openedUI = true;
     this.saveState();
     this.log("ring", { count: this.state.ringCount, force, late });
 
